@@ -430,17 +430,6 @@ ci/                        integration test · metrics check · dashboard check
 demo/                      run_demo.py + two synthetic policy documents
 ```
 
-## Documentation
-
-| File | What's in it |
-|---|---|
-| **`pending.md`** | **Everything written but not proven, and everything knowingly missing. Read this before trusting the repo** |
-| `decision.md` | Every non-obvious choice, with the reason and the cost if it's wrong |
-| `flow.md` | End-to-end code flow, function by function |
-| `test_commands.md` | The e2e runs and their real output, plus the acceptance matrix |
-
----
-
 ## Author
 
 **Yash Pabari** 
