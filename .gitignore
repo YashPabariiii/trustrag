@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.pytest_cache/
+chroma_data/
+.DS_Store
+
+# k8s secrets are a template only; the filled-in copy never gets committed.
+k8s/secret.yaml
