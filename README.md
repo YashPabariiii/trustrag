@@ -443,8 +443,4 @@ demo/                      run_demo.py + two synthetic policy documents
 
 ## Author
 
-**Yash** — Senior Analyst & AI/ML Engineer, Model Risk Management,
-Nomura Holdings.
-
-Built as a demonstration that RAG evaluation belongs in the product, not in a
-notebook next to it.
+**Yash Pabari** 
