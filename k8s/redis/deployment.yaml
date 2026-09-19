@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: trustrag
+  labels:
+    app: trustrag
+    component: redis
+spec:
+  replicas: 1
+  strategy:
+    # Two Redis pods would mean two brokers and two rate-limit stores. Never
+    # roll a second one up alongside the first.
+    type: Recreate
+  selector:
+    matchLabels:
+      app: trustrag
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: trustrag
+        component: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7
+          args: ["--save", "60", "1", "--appendonly", "no"]
+          ports:
+            - name: redis
+              containerPort: 6379
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: redis
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: trustrag
+spec:
+  selector:
+    app: trustrag
+    component: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis

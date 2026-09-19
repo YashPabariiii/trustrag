@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-worker
+  namespace: trustrag
+  labels:
+    app: trustrag
+    component: worker
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: trustrag
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: trustrag
+        component: worker
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+        prometheus.io/path: /metrics
+    spec:
+      containers:
+        - name: worker
+          image: trustrag:latest
+          imagePullPolicy: IfNotPresent
+          # The multiproc dir must exist and be empty: files left by a previous
+          # container are replayed as live series on the first scrape.
+          command:
+            - sh
+            - -c
+            - >
+              mkdir -p /tmp/prom && rm -rf /tmp/prom/* &&
+              exec celery -A app.workers.celery_app.celery_app worker
+              --loglevel=info --concurrency=2
+          ports:
+            - name: metrics
+              containerPort: 9100
+          envFrom:
+            - configMapRef:
+                name: trustrag-config
+            - secretRef:
+                name: trustrag-secrets
+          env:
+            - name: PROMETHEUS_MULTIPROC_DIR
+              value: /tmp/prom
+            - name: HF_HOME
+              value: /models
+            - name: TOKENIZERS_PARALLELISM
+              value: "false"
+          # Twice the API's request: a worker process holds the embedder, the
+          # cross-encoder reranker AND the RAGAS stack, and prefork gives each
+          # of the two children its own copy of the models.
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 2Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+          # No HTTP readiness: a Celery worker serves no traffic. The metrics
+          # port coming up is the closest honest signal that the pool started.
+          readinessProbe:
+            tcpSocket:
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: metrics
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            failureThreshold: 4
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+            - name: prom-multiproc
+              mountPath: /tmp/prom
+      # task_acks_late means an evicted worker's message is redelivered, and
+      # index_document is written to be re-runnable — but a long grace period
+      # still avoids re-doing minutes of work for no reason.
+      terminationGracePeriodSeconds: 120
+      volumes:
+        - name: model-cache
+          emptyDir:
+            sizeLimit: 5Gi
+        - name: prom-multiproc
+          emptyDir: {}

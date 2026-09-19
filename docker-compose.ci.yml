@@ -1,0 +1,32 @@
+# Overlay for CI and for running the demo without a Groq key.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+#
+# It swaps the real Groq endpoint for a local stub that answers only from the
+# context it is handed and doubles as a RAGAS judge. Every line of TrustRAG's
+# own code — the groq SDK, SSE decoding, citation parsing, the RAGAS prompts —
+# runs unchanged; only the model is fake (decision.md D-51, D-88).
+services:
+  groq-stub:
+    build: .
+    command: uvicorn groq_stub:app --host 0.0.0.0 --port 8123 --app-dir /srv/ci
+    volumes:
+      - ./ci:/srv/ci:ro
+    ports:
+      - "8123:8123"
+
+  api:
+    environment:
+      GROQ_API_KEY: stub-key
+      GROQ_BASE_URL: http://groq-stub:8123
+    depends_on:
+      groq-stub:
+        condition: service_started
+
+  celery-worker:
+    environment:
+      GROQ_API_KEY: stub-key
+      GROQ_BASE_URL: http://groq-stub:8123
+    depends_on:
+      groq-stub:
+        condition: service_started

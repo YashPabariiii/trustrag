@@ -1,0 +1,15 @@
+apiVersion: 1
+
+providers:
+  - name: TrustRAG
+    orgId: 1
+    folder: TrustRAG
+    type: file
+    disableDeletion: false
+    # Edits in the UI are overwritten on the next reload — the JSON in git is
+    # the source of truth, which is the point of provisioning them.
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

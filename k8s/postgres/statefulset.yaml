@@ -1,0 +1,87 @@
+# A StatefulSet, not a Deployment: the volume must follow the pod identity.
+# This is a single-instance Postgres with a PVC — fine for a demo cluster, and
+# NOT what you want in production. See pending.md.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: trustrag
+  labels:
+    app: trustrag
+    component: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trustrag
+      component: postgres
+  template:
+    metadata:
+      labels:
+        app: trustrag
+        component: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: trustrag
+            - name: POSTGRES_DB
+              value: trustrag
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trustrag-secrets
+                  key: POSTGRES_PASSWORD
+            # The image refuses to initialise into a non-empty mount root, and
+            # most CSI drivers leave a lost+found there.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "trustrag", "-d", "trustrag"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "trustrag", "-d", "trustrag"]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: trustrag
+spec:
+  clusterIP: None
+  selector:
+    app: trustrag
+    component: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres

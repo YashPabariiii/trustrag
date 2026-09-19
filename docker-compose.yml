@@ -1,0 +1,157 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: trustrag
+      POSTGRES_PASSWORD: trustrag
+      POSTGRES_DB: trustrag
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trustrag -d trustrag"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8001:8000"
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /chroma/data
+      ANONYMIZED_TELEMETRY: "FALSE"
+    volumes:
+      - chroma_data:/chroma/data
+
+  api:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/srv/app
+      - ./alembic.ini:/srv/alembic.ini
+    environment:
+      DATABASE_URL: postgresql+asyncpg://trustrag:trustrag@postgres:5432/trustrag
+      REDIS_URL: redis://redis:6379/0
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+      CHROMA_PERSIST_DIR: /chroma/data
+      SECRET_KEY: dev-secret-change-me
+      ENVIRONMENT: development
+      LOG_LEVEL: INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+
+  celery-worker:
+    build: .
+    # PROMETHEUS_MULTIPROC_DIR must exist and must be EMPTY at start: files
+    # left by a previous container are replayed as live series on the first
+    # scrape, which shows up as counters that jump on restart.
+    command: >
+      sh -c "mkdir -p /tmp/prom && rm -rf /tmp/prom/* &&
+             celery -A app.workers.celery_app.celery_app worker
+             --loglevel=info --concurrency=2"
+    volumes:
+      - ./app:/srv/app
+      - model_cache:/models
+    environment:
+      DATABASE_URL: postgresql+asyncpg://trustrag:trustrag@postgres:5432/trustrag
+      REDIS_URL: redis://redis:6379/0
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+      CHROMA_PERSIST_DIR: /chroma/data
+      SECRET_KEY: dev-secret-change-me
+      ENVIRONMENT: development
+      LOG_LEVEL: INFO
+      # Model cache on a volume so a worker restart doesn't re-download it.
+      HF_HOME: /models
+      # Prefork children each write their own metric files; the parent
+      # aggregates them on scrape (decision.md D-86).
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prom
+      WORKER_METRICS_PORT: 9100
+    ports:
+      - "9100:9100"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+
+  dashboard:
+    build: .
+    command: streamlit run dashboard/app.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./dashboard:/srv/dashboard
+    environment:
+      # In-network name, not localhost: the browser talks to Streamlit, and
+      # Streamlit (server-side) talks to the API.
+      API_BASE_URL: http://api:8000
+    depends_on:
+      - api
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      # Dev only. Anonymous viewers make `docker compose up` a one-command demo;
+      # never do this on anything reachable from outside a laptop.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_DEFAULT_THEME: light
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  redis_data:
+  chroma_data:
+  model_cache:
+  prometheus_data:
+  grafana_data:

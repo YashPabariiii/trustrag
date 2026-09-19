@@ -1,0 +1,150 @@
+NORTHWIND TECHNOLOGIES
+Internal AI Safety and Deployment Policy — Version 3.2
+Effective 1 March 2026. Owner: Office of the Chief AI Officer.
+Synthetic document. Northwind Technologies is a fictional company.
+
+1. PURPOSE AND SCOPE
+
+This policy governs the design, evaluation, deployment and monitoring of every
+machine learning system Northwind Technologies operates, including systems
+supplied by third-party vendors and systems built on external foundation
+models. It applies to all business units in all jurisdictions in which the firm
+operates. It does not apply to purely deterministic rule engines that contain
+no learned component.
+
+The policy exists because the failure modes of a learned system are different
+in kind from those of conventional software. A conventional defect is
+reproducible; a model failure is often statistical, silent, and only visible in
+aggregate. The controls below are therefore weighted toward measurement rather
+than inspection.
+
+2. RISK CLASSIFICATION
+
+Every system is assigned one of four risk tiers at design time, and the tier is
+reviewed whenever the system's purpose or population changes.
+
+Tier 1 (Prohibited). Systems that infer protected characteristics for the
+purpose of differential treatment, or that operate autonomously on customer
+funds without a human decision point. These are not deployed.
+
+Tier 2 (High risk). Systems whose output materially affects a person's access
+to credit, employment, housing or healthcare, and any system whose output is
+presented to a customer as authoritative. Tier 2 systems require a documented
+evaluation suite, a named accountable owner, quarterly bias testing, and a
+rollback plan that can be executed within one hour.
+
+Tier 3 (Limited risk). Internal decision-support systems where a human reviews
+every output before it is acted upon. These require an evaluation suite and an
+annual review.
+
+Tier 4 (Minimal risk). Systems with no external effect, such as internal search
+ranking or document classification for archival. These require an owner and a
+monitoring dashboard.
+
+Retrieval-augmented generation systems that answer questions from internal
+documents are classified Tier 3 by default, and Tier 2 when their output is
+shown to customers without human review.
+
+3. EVALUATION REQUIREMENTS
+
+No Tier 2 or Tier 3 system may be deployed without a written evaluation plan
+approved by the Office of the Chief AI Officer. The plan must state what the
+system is expected to get right, how that is measured, and what score
+constitutes a failure.
+
+For generative and retrieval-augmented systems specifically, the following four
+measures are mandatory and must be recorded for every production query, not
+merely for a held-out test set:
+
+  (a) Faithfulness — the proportion of claims in the generated output that are
+      supported by the retrieved source material. The minimum acceptable
+      rolling average is 0.80.
+
+  (b) Context relevance — whether the retrieval step surfaced material capable
+      of answering the question at all. The minimum acceptable rolling average
+      is 0.70. A low score here indicates a retrieval defect, not a model
+      defect, and must not be addressed by prompt changes.
+
+  (c) Answer relevance — whether the output addresses the question that was
+      actually asked. The minimum acceptable rolling average is 0.75.
+
+  (d) Hallucination rate — the proportion of outputs containing at least one
+      unsupported claim. This must not exceed 0.10 for any Tier 2 system.
+
+Where a measure falls below its threshold for three consecutive days, the
+system owner must file a remediation plan within five business days. Where
+faithfulness falls below 0.60 at any point, the system is withdrawn from
+customer-facing use until remediated.
+
+4. HUMAN OVERSIGHT
+
+Tier 2 systems require a reviewer who is competent to overturn the system's
+output and who is measured on the quality of their overrides, not on their
+throughput. A reviewer who approves more than 98% of outputs over a quarter is
+presumed not to be exercising meaningful oversight, and the arrangement is
+escalated to the Office of the Chief AI Officer.
+
+Oversight is not a checkbox on a screen. A reviewer must have access to the
+source material the system used, the confidence or evaluation scores attached
+to the output, and a documented route to reject it without penalty.
+
+5. MONITORING AND INCIDENT RESPONSE
+
+Every deployed system emits, at minimum: request volume, latency at the 50th
+and 95th percentiles, its four evaluation measures, and the rate at which
+outputs are overridden by a human reviewer. These are reviewed weekly by the
+system owner and monthly by the AI Risk Committee.
+
+An AI incident is any of the following: a measure breaching its threshold for
+more than 24 hours; an output that causes or would have caused financial or
+reputational harm; the discovery that a system has been operating outside its
+approved scope; or a third-party model change that alters behaviour without
+notice.
+
+AI incidents are reported through the standard operational incident process
+within four hours of detection. The AI Risk Committee reviews every Severity 1
+and Severity 2 AI incident within ten business days.
+
+6. THIRD-PARTY MODELS
+
+Systems built on externally hosted foundation models carry an additional
+control: the provider's model version must be pinned, and any provider-side
+version change is treated as a new deployment requiring re-evaluation against
+the existing evaluation suite before traffic is moved.
+
+Northwind does not accept a vendor's own evaluation results as evidence. Every
+vendor system is evaluated against Northwind's own reference dataset.
+
+7. DATA GOVERNANCE
+
+Training and retrieval corpora must have a documented lineage: where each
+document came from, who owns it, what licence governs its use, and when it was
+last reviewed. Documents whose licence does not permit machine processing are
+excluded at ingestion, not at query time.
+
+Personal data used in training is subject to the firm's existing retention
+schedule. A model trained on personal data that has since been deleted must be
+retired or retrained at the next scheduled review.
+
+8. RECOMMENDED ACTIONS FOR SYSTEM OWNERS
+
+The Office of the Chief AI Officer recommends the following, in order of
+expected benefit:
+
+  1. Instrument evaluation before instrumenting anything else. A system without
+     per-query evaluation cannot be said to be monitored.
+  2. Maintain a golden set of at least twenty question-and-answer pairs per
+     system and run it after every configuration change.
+  3. Treat a fall in context relevance as a retrieval problem and a fall in
+     faithfulness as a generation problem. Conflating the two produces months
+     of prompt engineering against a retrieval defect.
+  4. Record the retrieval configuration alongside every evaluation result, so
+     that a change in score can be attributed to a change in configuration.
+  5. Review the reviewer. Oversight that always agrees is not oversight.
+
+9. REVIEW
+
+This policy is reviewed annually by the AI Risk Committee, and out of cycle
+whenever a Severity 1 AI incident occurs or applicable regulation changes.
+
+Approved: AI Risk Committee, 12 February 2026.

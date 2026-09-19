@@ -1,0 +1,27 @@
+# Two scrape targets, not one: query/cache/tier counters are incremented in the
+# API process and indexing/evaluation/suite counters in the Celery worker, and
+# a counter lives only in the process that incremented it (decision.md D-86).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    service: trustrag
+
+scrape_configs:
+  - job_name: trustrag-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]
+        labels:
+          component: api
+
+  - job_name: trustrag-worker
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["celery-worker:9100"]
+        labels:
+          component: worker
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

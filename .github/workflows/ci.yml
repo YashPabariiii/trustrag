@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A new push to the same branch cancels the run in flight. The integration job
+# boots eight containers; queueing two of them behind each other on a shared
+# runner is how a 12-minute pipeline becomes a 40-minute one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install ruff
+        run: pip install ruff
+
+      # F = real defects (undefined names, unused imports), E9 = syntax errors.
+      # Style rules are deliberately not enforced: this project has no
+      # formatter in CI, and a lint job that fails on line length trains people
+      # to ignore lint jobs.
+      - name: ruff check
+        run: ruff check app dashboard demo ci --select F,E9 --output-format=github
+
+      - name: ruff format --check (advisory)
+        run: ruff format --check app dashboard demo ci || true
+
+  docker-build:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # One image serves the API, the worker and the dashboard — the command is
+      # what makes a container one of the three. Building it once is the whole
+      # build matrix.
+      - name: Build the application image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: trustrag:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Compose files parse and declare the expected topology
+        run: |
+          docker compose -f docker-compose.yml config --services | sort | tee services.txt
+          diff <(sort services.txt) <(printf 'api\ncelery-worker\nchromadb\ndashboard\ngrafana\npostgres\nprometheus\nredis\n')
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml config -q
+
+  integration:
+    name: Integration (compose up, real e2e)
+    runs-on: ubuntu-latest
+    needs: [lint, docker-build]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install the test client
+        run: pip install httpx
+
+      # No GROQ_API_KEY on a runner, and an integration test that depends on a
+      # paid third-party API fails for reasons that are not the code's fault.
+      # The CI overlay swaps in a local stub that speaks the same
+      # OpenAI-compatible protocol, so the groq SDK, SSE decoding, citation
+      # parsing and the RAGAS prompts all run for real (decision.md D-88).
+      - name: docker compose up
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build \
+            postgres redis chromadb groq-stub api celery-worker
+
+      - name: Wait for /health/ready
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf localhost:8000/health/ready | tee /dev/stderr | grep -q '"chroma":"ok"'; then
+              echo "ready after ${i} attempts"; exit 0
+            fi
+            sleep 5
+          done
+          echo "API never became ready"; exit 1
+
+      - name: Apply migrations
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml exec -T api alembic upgrade head
+
+      - name: End-to-end — register, index, chat, evaluate
+        run: python ci/integration_test.py
+
+      - name: /metrics is valid Prometheus exposition
+        run: python ci/check_metrics.py
+
+      - name: Container logs
+        if: always()
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml logs --tail 200 api
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml logs --tail 200 celery-worker
+
+      - name: docker compose down
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
+
+  manifests:
+    name: Kubernetes manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+            | tar xz -C /usr/local/bin kubeconform
+
+      # Validates every manifest against the real Kubernetes JSON schemas.
+      # It is not the same as applying them to a cluster — see pending.md.
+      - name: Validate manifests
+        run: kubeconform -summary -strict -ignore-missing-schemas k8s/
+
+      - name: Grafana dashboards are valid JSON with a datasource
+        run: python ci/check_dashboards.py

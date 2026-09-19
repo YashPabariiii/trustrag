@@ -1,0 +1,38 @@
+# Non-secret configuration. Everything here is also a valid `.env` key — the
+# app reads the same names whether it is started by Compose or by a kubelet.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trustrag-config
+  namespace: trustrag
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+
+  REDIS_URL: "redis://redis:6379/0"
+  CHROMA_HOST: "chromadb"
+  CHROMA_PORT: "8000"
+  CHROMA_PERSIST_DIR: "/chroma/data"
+
+  EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2"
+  RERANKER_MODEL: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+  GROQ_MODEL: "llama-3.3-70b-versatile"
+  RAGAS_EVAL_MODEL: "llama-3.1-8b-instant"
+
+  DEFAULT_CHUNK_SIZE: "600"
+  DEFAULT_CHUNK_OVERLAP: "100"
+  DEFAULT_TOP_K: "5"
+  QUERY_CACHE_TTL: "1800"
+
+  FREE_TIER_KB_LIMIT: "2"
+  FREE_TIER_DOC_LIMIT: "10"
+  FREE_TIER_QUERY_LIMIT: "50"
+  RATE_LIMIT_FREE: "20/minute"
+  RATE_LIMIT_PRO: "200/minute"
+
+  # The demo tenant prints a live API key into the logs on every boot. That is
+  # a dev convenience and a production liability.
+  SEED_DEMO_TENANT: "false"
+
+  WORKER_METRICS_PORT: "9100"
+  API_BASE_URL: "http://api:8000"

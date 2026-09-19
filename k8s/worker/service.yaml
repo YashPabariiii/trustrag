@@ -1,0 +1,21 @@
+# Headless: nothing routes traffic to a worker. It exists so Prometheus can
+# discover both pods' metrics endpoints individually rather than load-balancing
+# across them (which would scrape a random pod each time and produce sawtooth
+# counters).
+apiVersion: v1
+kind: Service
+metadata:
+  name: celery-worker
+  namespace: trustrag
+  labels:
+    app: trustrag
+    component: worker
+spec:
+  clusterIP: None
+  selector:
+    app: trustrag
+    component: worker
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: metrics

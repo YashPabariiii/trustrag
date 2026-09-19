@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: trustrag
+  labels:
+    app: trustrag
+    component: api
+spec:
+  replicas: 3
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: trustrag
+      component: api
+  template:
+    metadata:
+      labels:
+        app: trustrag
+        component: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      # The image bundles the API, the worker and the dashboard; the command is
+      # what makes a pod one of the three.
+      containers:
+        - name: api
+          image: trustrag:latest
+          imagePullPolicy: IfNotPresent
+          command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: trustrag-config
+            - secretRef:
+                name: trustrag-secrets
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          # /health/ready checks Postgres, Redis and Chroma and answers 503 if
+          # any is down, so a pod removes itself from the Service rather than
+          # serving 500s.
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # /health/live does no I/O, so a dead backend never restarts a
+          # perfectly healthy process.
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # The embedding and reranker models load in the lifespan (~30-60 s on
+          # a cold image). A startup probe buys that time without loosening the
+          # liveness threshold afterwards.
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: false
+            capabilities:
+              drop: ["ALL"]
+      terminationGracePeriodSeconds: 30

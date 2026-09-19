@@ -1,0 +1,143 @@
+MERIDIAN CAPITAL PARTNERS
+Model Risk Management Standard — MRM-2026-01
+Effective 1 April 2026. Owner: Head of Model Risk Management.
+Synthetic document. Meridian Capital Partners is a fictional firm.
+
+1. PURPOSE
+
+This standard sets out the compliance requirements that apply to quantitative
+models used in valuation, risk measurement, capital calculation, client
+suitability and regulatory reporting at Meridian Capital Partners. It gives
+effect to the firm's obligations under SR 11-7 (Supervisory Guidance on Model
+Risk Management), the EU Artificial Intelligence Act where models fall within
+its scope, and the firm's own internal control framework.
+
+A model, for the purposes of this standard, is any quantitative method that
+applies statistical, economic, financial or mathematical theory to input data
+in order to produce an output that informs a business decision. This definition
+includes machine learning systems and includes vendor-supplied models.
+
+2. COMPLIANCE REQUIREMENTS
+
+2.1 Model inventory. Every model must be registered in the firm's model
+inventory before first production use. The register records the owner, the
+developer, the validator, the risk tier, the date of last validation and the
+date of next scheduled validation. Use of an unregistered model in a regulated
+process is a reportable control breach.
+
+2.2 Independent validation. Every Tier 1 and Tier 2 model is validated by a
+team independent of the team that built it, before deployment and at least
+annually thereafter. Validation covers conceptual soundness, the quality and
+representativeness of input data, outcome analysis against realised results,
+and benchmarking against an alternative approach.
+
+2.3 Documentation. Model documentation must be sufficient for a competent
+third party to reproduce the model's output from its inputs. Documentation that
+depends on the continued availability of its author is not sufficient.
+
+2.4 Change control. Any change to a model's methodology, its calibration, or
+its input data sources requires re-validation proportionate to the change. A
+recalibration on existing methodology requires a targeted review; a change of
+methodology requires full re-validation.
+
+2.5 Ongoing monitoring. Model performance is monitored continuously against
+pre-agreed thresholds. Where a model breaches its threshold, the owner must
+notify Model Risk Management within two business days and either remediate or
+seek a documented, time-limited exception.
+
+2.6 Retention. Model documentation, validation reports and monitoring records
+are retained for seven years from the date the model is retired. Records
+supporting a regulatory submission are retained for ten years.
+
+3. RISK TIERING
+
+Tier 1 models are those whose output feeds regulatory capital, financial
+statement valuation, or client-facing suitability decisions. Tier 1 models
+require annual independent validation, quarterly outcome analysis, and
+board-level reporting of any threshold breach.
+
+Tier 2 models inform material internal decisions but do not directly produce a
+regulatory or client-facing figure. Tier 2 models require annual validation and
+semi-annual outcome analysis.
+
+Tier 3 models are used for exploratory or advisory purposes with human
+judgement applied to every output. Tier 3 models require registration,
+documentation and a periodic review, but not independent validation.
+
+4. ARTIFICIAL INTELLIGENCE AND LANGUAGE MODELS
+
+Systems built on large language models are subject to this standard in full.
+Two additional requirements apply.
+
+First, output traceability. Where a language model produces text that informs a
+decision, the sources on which that text was based must be recorded alongside
+the output. An answer without a traceable source is treated as an unvalidated
+model output and may not be relied upon.
+
+Second, continuous evaluation. Language model systems must be evaluated on
+every production query, not on a periodic sample. The minimum measures are
+faithfulness to source material, relevance of retrieved material, relevance of
+the answer to the question, and an explicit hallucination measure. Results are
+retained with the query and are reviewable by Model Risk Management on demand.
+
+Vendor-hosted models must be version-pinned. A provider-initiated version
+change is a model change under section 2.4 and requires re-validation before
+production traffic is moved to the new version.
+
+5. KEY FINDINGS OF THE 2025 THEMATIC REVIEW
+
+Model Risk Management conducted a thematic review of the firm's twenty-eight
+registered machine learning models during the fourth quarter of 2025. The
+principal findings were as follows.
+
+Finding 1. Eleven of twenty-eight models had no documented performance
+threshold, and therefore could not breach one. Monitoring existed but had no
+defined failure condition.
+
+Finding 2. Documentation quality was the single largest driver of validation
+delay. The median validation took 34 days, of which 19 were spent obtaining
+information that should have been in the documentation pack.
+
+Finding 3. Six models were operating outside their approved scope, in every
+case through gradual expansion of use rather than a deliberate decision. None
+had been re-tiered.
+
+Finding 4. Language-model systems were the least well controlled category.
+Three of four such systems recorded no per-query evaluation at all, relying
+instead on periodic manual review of a small sample.
+
+Finding 5. Where evaluation did exist, it was not attributed to a configuration
+version, so changes in measured quality could not be traced to changes in the
+system.
+
+6. RECOMMENDED ACTIONS
+
+The following actions were agreed with business owners and are tracked to
+completion by Model Risk Management.
+
+  1. Every registered model to have a documented performance threshold and a
+     defined breach condition by the end of the second quarter of 2026.
+  2. Documentation packs to be brought to the reproducibility standard in
+     section 2.3, prioritised by risk tier.
+  3. Annual scope attestation by every model owner, confirming that actual use
+     matches registered use.
+  4. Per-query evaluation to be implemented for all language-model systems,
+     with results retained alongside the query.
+  5. Evaluation results to record the retrieval and generation configuration
+     that produced them, so that quality changes are attributable.
+  6. A regression suite of validated question-and-answer pairs to be maintained
+     for each language-model system and re-run after every configuration change.
+
+7. BREACHES AND ESCALATION
+
+A control breach under this standard is reported to Model Risk Management
+immediately and to the Model Risk Committee at its next scheduled meeting.
+Repeated breaches by the same owner are escalated to the relevant business
+head and are reflected in the annual control assessment.
+
+8. REVIEW
+
+This standard is reviewed annually and out of cycle following any material
+regulatory change or Severity 1 model incident.
+
+Approved: Model Risk Committee, 6 March 2026.
